@@ -1,0 +1,14 @@
+{
+  "name": "odysseus-lite",
+  "description": "Lightweight self-hosted AI workspace for low-end PCs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pewdiepie-archdaemon/odysseus.git"
+  },
+  "devDependencies": {
+    "@antithesishq/bombadil": "^0.3.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0"
+  }
+}

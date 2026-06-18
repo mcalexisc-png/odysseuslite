@@ -1,0 +1,51 @@
+{
+  "_comment": "Lite Cookbook — a small curated table of CPU-friendly quantized models, tiered by total system RAM. NOT the 270-model upstream scanner. Sizes/speeds are realistic CPU-only estimates; tokens_per_sec is a rough range on a modern dual/quad-core with no GPU. Keep this list short and honest.",
+  "tiers": [
+    {
+      "id": "minimal",
+      "label": "2–4 GB RAM",
+      "min_ram_gb": 0,
+      "max_ram_gb": 4,
+      "summary": "Very low RAM. Expect short answers and slow generation. Best for simple Q&A, drafting, and tool-calling — not long reasoning.",
+      "tokens_per_sec": "3–10 tok/s",
+      "models": [
+        {"name": "llama3.2:1b", "params_b": 1, "quant": "Q4_K_M", "approx_size_gb": 0.8, "provider": "ollama", "note": "Smallest viable instruct model; fast, limited reasoning."},
+        {"name": "qwen2.5:0.5b", "params_b": 0.5, "quant": "Q4_K_M", "approx_size_gb": 0.4, "provider": "ollama", "note": "Tiny; good for classification/extraction, weak at open chat."},
+        {"name": "gemma2:2b", "params_b": 2, "quant": "Q4_K_M", "approx_size_gb": 1.6, "provider": "ollama", "note": "Borderline on 4GB; close other apps first."}
+      ]
+    },
+    {
+      "id": "balanced",
+      "label": "4–8 GB RAM",
+      "min_ram_gb": 4,
+      "max_ram_gb": 8,
+      "summary": "The sweet spot for lite. 3B-class instruct models give usable chat, summarization, and agent tool use at tolerable speed.",
+      "tokens_per_sec": "5–15 tok/s",
+      "models": [
+        {"name": "llama3.2:3b", "params_b": 3, "quant": "Q4_K_M", "approx_size_gb": 2.0, "provider": "ollama", "note": "Recommended default — good balance of quality and speed."},
+        {"name": "qwen2.5:3b", "params_b": 3, "quant": "Q4_K_M", "approx_size_gb": 1.9, "provider": "ollama", "note": "Strong at structured output and tool calls."},
+        {"name": "phi3.5:3.8b", "params_b": 3.8, "quant": "Q4_K_M", "approx_size_gb": 2.2, "provider": "ollama", "note": "Good reasoning for its size."}
+      ]
+    },
+    {
+      "id": "comfortable",
+      "label": "8 GB+ RAM",
+      "min_ram_gb": 8,
+      "max_ram_gb": 9999,
+      "summary": "Room for 7B-class models. Noticeably better reasoning and longer context, still CPU-only but slower per token.",
+      "tokens_per_sec": "4–12 tok/s",
+      "models": [
+        {"name": "llama3.1:8b", "params_b": 8, "quant": "Q4_K_M", "approx_size_gb": 4.7, "provider": "ollama", "note": "Best general quality in the lite range; needs ~8GB free."},
+        {"name": "qwen2.5:7b", "params_b": 7, "quant": "Q4_K_M", "approx_size_gb": 4.4, "provider": "ollama", "note": "Excellent for coding and tools."},
+        {"name": "mistral:7b", "params_b": 7, "quant": "Q4_K_M", "approx_size_gb": 4.1, "provider": "ollama", "note": "Fast, solid all-rounder."}
+      ]
+    }
+  ],
+  "api_fallback": {
+    "summary": "No local model is comfortable on this machine — or you just want the best quality. Use a hosted API instead. Set the provider key in Settings or .env and pick a small, cheap model.",
+    "providers": [
+      {"name": "OpenAI", "env": "OPENAI_API_KEY", "example_model": "gpt-4o-mini", "url": "https://platform.openai.com/api-keys"},
+      {"name": "OpenRouter", "env": "OPENROUTER_API_KEY", "example_model": "meta-llama/llama-3.1-8b-instruct", "url": "https://openrouter.ai/keys"}
+    ]
+  }
+}

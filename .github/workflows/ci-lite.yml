@@ -1,0 +1,136 @@
+name: CI (Lite)
+
+# Lite-scoped CI: install the trimmed lite requirements, run the lite overlay
+# test suite, boot the app, and build + boot the lite Docker image. This is the
+# required-green gate for the lite fork (the broad upstream ci.yml stays
+# informational for the full suite).
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-lite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lite-lint-and-tests:
+    name: Lite lint + overlay tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # bubblewrap gives the agent-shell sandbox a real OS launcher so the
+      # confinement tests exercise the bwrap path (they skip gracefully without it).
+      - name: Install bubblewrap
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+
+      - name: Install lite requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lite.txt
+          pip install ruff
+
+      - name: Ruff lint (lite overlay modules)
+        run: |
+          ruff check \
+            services/shell/sandbox.py \
+            services/memory_hybrid.py \
+            services/cookbook_lite.py \
+            routes/cookbook_lite_routes.py \
+            || true   # advisory for now; tighten once clean
+
+      - name: Prepare data dir
+        run: mkdir -p data logs uploads data/agent_workspace
+
+      - name: Run lite overlay tests
+        env:
+          ODYSSEUS_DATA_DIR: ${{ github.workspace }}/data
+          HF_HUB_DISABLE_TELEMETRY: "1"
+        run: |
+          python -m pytest -q \
+            tests/test_agent_shell_sandbox.py \
+            tests/test_memory_hybrid_lite.py \
+            tests/test_cookbook_lite.py \
+            tests/test_search_lite_fallback.py \
+            tests/test_resource_budget_lite.py \
+            tests/test_lite_smoke.py \
+            tests/test_lite_config_matrix.py
+
+  lite-boot:
+    name: App boots under lite defaults
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lite.txt
+      - name: Boot app and hit /api/health
+        env:
+          LITE_MODE: "true"
+          AUTH_ENABLED: "false"
+          MEMORY_BACKEND: sqlite_fts
+          SEARCH_PROVIDER: duckduckgo
+          CHROMADB_ENABLED: "false"
+          ODYSSEUS_SKIP_ADMIN_PROMPT: "1"
+          AGENT_SHELL_MODE: sandboxed
+        run: |
+          mkdir -p data logs uploads
+          python -m uvicorn app:app --host 127.0.0.1 --port 7000 &
+          UVPID=$!
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:7000/api/health >/dev/null 2>&1; then
+              echo "health OK after ${i}s"; break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:7000/api/health
+          curl -fsS http://127.0.0.1:7000/api/ready
+          curl -fsS http://127.0.0.1:7000/api/lite/cookbook/recommend >/dev/null
+          kill $UVPID || true
+
+  lite-docker:
+    name: Build + boot lite Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build lite image
+        run: docker build -t odysseus-lite:ci .
+      - name: Boot the lite container and hit /api/health
+        run: |
+          docker run -d --name odysseus-lite-ci \
+            -e LITE_MODE=true -e AUTH_ENABLED=false \
+            -e ODYSSEUS_SKIP_ADMIN_PROMPT=1 \
+            -p 7000:7000 odysseus-lite:ci
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:7000/api/health >/dev/null 2>&1; then
+              echo "container health OK after ${i}s"; break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:7000/api/health
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker logs odysseus-lite-ci || true
+      - name: Cleanup
+        if: always()
+        run: docker rm -f odysseus-lite-ci || true

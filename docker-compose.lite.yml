@@ -1,0 +1,58 @@
+# docker-compose.lite.yml — Odysseus Lite
+# Single-container deployment. No ChromaDB, SearXNG, or ntfy.
+# Designed for low-end PCs and laptops (4GB+ RAM, CPU-only).
+
+services:
+  odysseus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odysseus-lite
+    restart: unless-stopped
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-7000}:7000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    environment:
+      - LITE_MODE=true
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+      - LOCALHOST_BYPASS=${LOCALHOST_BYPASS:-false}
+      - SECURE_COOKIES=${SECURE_COOKIES:-false}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/app.db}
+      - SEARCH_PROVIDER=duckduckgo
+      - CHROMADB_ENABLED=false
+      - MEMORY_BACKEND=sqlite_fts
+      - RESEARCH_MAX_STEPS=${RESEARCH_MAX_STEPS:-5}
+      - RESEARCH_CONCURRENCY=${RESEARCH_CONCURRENCY:-1}
+      - ODYSSEUS_CHAT_UPLOAD_MAX_BYTES=${ODYSSEUS_CHAT_UPLOAD_MAX_BYTES:-5242880}
+      # Agent loop cap — a runaway loop can't burn CPU/tokens past this on a
+      # low-end host. Raise it if you have headroom and want longer agent runs.
+      - AGENT_MAX_STEPS=${AGENT_MAX_STEPS:-12}
+      # Agent shell sandbox (see THREAT_MODEL.md). sandboxed = no network, jailed
+      # to the workspace, rlimits, 120s timeout. Install bubblewrap in the image
+      # for a real OS sandbox; otherwise a degraded confinement is used.
+      - AGENT_SHELL_MODE=${AGENT_SHELL_MODE:-sandboxed}
+      - AGENT_SHELL_NET=${AGENT_SHELL_NET:-false}
+      - AGENT_SHELL_TIMEOUT=${AGENT_SHELL_TIMEOUT:-120}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LLM_HOST=${LLM_HOST:-localhost}
+      - LLM_HOSTS=${LLM_HOSTS:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Resource ceilings for a 4GB host. Raise by exporting MEM_LIMIT / CPU_LIMIT
+    # before `docker compose up` if you have headroom.
+    mem_limit: ${MEM_LIMIT:-1g}
+    mem_reservation: ${MEM_RESERVATION:-256m}
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_LIMIT:-1g}
+          cpus: "${CPU_LIMIT:-2.0}"
+        reservations:
+          memory: ${MEM_RESERVATION:-256m}

@@ -1,0 +1,47 @@
+# Odysseus Lite — Trimmed Requirements
+# Replaces chromadb + fastembed with SQLite FTS5 + BM25 (rank-bm25)
+# Replaces SearXNG with DuckDuckGo (duckduckgo-search)
+# Install: pip install -r requirements.lite.txt
+
+fastapi
+uvicorn
+python-multipart
+python-dotenv
+httpx
+pydantic>=2.0
+pydantic-settings>=2.0
+SQLAlchemy
+pypdf
+beautifulsoup4
+charset-normalizer
+numpy
+youtube-transcript-api
+markdown
+nh3
+python-dateutil
+cryptography
+bcrypt
+mcp
+pyotp
+qrcode[pil]
+croniter
+pytest
+pytest-asyncio
+
+# Lite additions — replace SearXNG container with direct DuckDuckGo API.
+# The codebase imports the maintained `ddgs` package (the renamed
+# duckduckgo-search); keep the old name pinned too for back-compat installs.
+ddgs
+duckduckgo-search==6.2.13
+
+# Phase 2 — cheap hybrid semantic memory (opt-in via MEMORY_BACKEND=hybrid).
+# sqlite-vec: single SQLite extension, no server (keeps the one-container rule).
+# model2vec: tiny static embeddings (~30MB model, no GPU/ONNX) for the 4GB tier.
+# Both are inert unless MEMORY_BACKEND=hybrid; sqlite_fts stays the default and
+# the app degrades to keyword-only if these can't load.
+sqlite-vec
+model2vec
+
+# NOTE: rank-bm25 was previously listed but is not imported anywhere — upstream
+# implements BM25 directly in src/chat_processor.py, so it was removed to trim
+# the image.
