@@ -2,6 +2,47 @@
 
 All notable changes to Odysseus Lite are documented here.
 
+## [1.1-lite] — 2026-06-19: Opt-in Host File Access
+
+Adds a documented, opt-in way to let the agent read (and optionally edit) files
+on the host machine, built entirely on the existing workspace-jail + sandbox
+model. **Off by default** — a fresh `docker compose -f docker-compose.lite.yml up`
+mounts no host folder, keeps `AGENT_SHELL_MODE=sandboxed`, and leaves the
+file-tool jail and sensitive-path denylist enforced.
+
+### Added
+- **Env-driven host mount.** `HOST_FS_PATH` / `HOST_FS_MODE` (`ro` default) in
+  `.env` mount a chosen folder at `/host`. When `HOST_FS_PATH` is unset the
+  compose volume maps the already-shared `data/` dir (inert no-op — no new
+  access). `docker-compose.lite.yml` now also passes `AGENT_SHELL_ACK_UNSAFE`
+  through, so the read-write tier is actually reachable.
+- **Status endpoint** `GET /api/workspace/host-access` (admin-gated) reporting
+  `none` / `read-only` / `read-write`, inferred from mount presence, writability,
+  and the shell sandbox mode (`src/host_fs.py`).
+- **Settings → File Access** panel: status-only display of the current mode with a
+  plain-language trade-off explanation and a read-write warning banner. Cannot
+  escalate to read-write from the UI (that requires the `.env` change + restart).
+- **Workspace picker** gains a one-click “Shared folder (/host)” shortcut and a
+  mode-aware confinement note when a folder is shared.
+- **Startup warning** extended: a writable `/host` under `unrestricted` mode logs
+  a loud banner that the agent can modify/delete real files.
+- README “Giving the agent access to your files” (read-only quickstart, gated
+  read-write tier, safety model) and `.env.example` documentation.
+
+### Safety model (unchanged invariants)
+- Read-only is the default opt-in; read-write requires a writable mount **and**
+  `AGENT_SHELL_MODE=unrestricted` **and** `AGENT_SHELL_ACK_UNSAFE=true`.
+- The sensitive-path denylist (`.ssh`, `.gnupg`, `id_rsa`, shell rc files) stays
+  enforced inside any shared folder, in every mode.
+- `vet_workspace('/')` still returns `None` — whole-disk access remains impossible.
+
+### Fixed
+- `host_access_status()` now uses `os.path.samefile` (dev+inode) rather than a
+  realpath string compare to detect the inert default. Inside the container
+  `/host` and `/app/data` are the same directory but have different realpath
+  strings (each is its own bind mount), so the string compare wrongly reported
+  the default state as `read-only`; it now correctly reports `none`.
+
 ## [1.0-lite] — 2026-06-18: True Lite upgrade
 
 Upgrades Odysseus Lite from a *stripped-down* fork into a *true lite* version:

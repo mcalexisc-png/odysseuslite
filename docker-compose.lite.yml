@@ -15,6 +15,13 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./uploads:/app/uploads
+      # Opt-in host file access (see README "Giving the agent access to your files").
+      # When HOST_FS_PATH is unset this maps the already-shared ./data again, so it
+      # grants NO new access — the feature is off by default. To share a real folder,
+      # set HOST_FS_PATH in .env to that folder; it appears at /host in the container.
+      # HOST_FS_MODE defaults to ro (read-only); set it to rw for read-write (which
+      # also needs AGENT_SHELL_MODE=unrestricted + AGENT_SHELL_ACK_UNSAFE=true).
+      - ${HOST_FS_PATH:-./data}:/host:${HOST_FS_MODE:-ro}
     environment:
       - LITE_MODE=true
       - AUTH_ENABLED=${AUTH_ENABLED:-true}
@@ -36,6 +43,9 @@ services:
       - AGENT_SHELL_MODE=${AGENT_SHELL_MODE:-sandboxed}
       - AGENT_SHELL_NET=${AGENT_SHELL_NET:-false}
       - AGENT_SHELL_TIMEOUT=${AGENT_SHELL_TIMEOUT:-120}
+      # Required (with AGENT_SHELL_MODE=unrestricted) to actually disable the
+      # sandbox — e.g. for the read-write host-file-access tier. Off by default.
+      - AGENT_SHELL_ACK_UNSAFE=${AGENT_SHELL_ACK_UNSAFE:-false}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - LLM_HOST=${LLM_HOST:-localhost}
       - LLM_HOSTS=${LLM_HOSTS:-}

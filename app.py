@@ -89,7 +89,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Odysseus Lite",
     description="Lightweight self-hosted AI workspace",
-    version="1.0-lite",
+    version="1.1-lite",
 )
 
 # ========= CORS =========
@@ -856,7 +856,7 @@ async def get_version():
     from core.constants import APP_VERSION
     ver = APP_VERSION
     if LITE_MODE:
-        ver = "1.0-lite"
+        ver = "1.1-lite"
     return {"version": ver}
 
 @app.get("/api/lite-config")

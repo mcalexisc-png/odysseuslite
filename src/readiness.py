@@ -25,7 +25,7 @@ def check_readiness() -> Dict[str, object]:
 
     version = APP_VERSION
     if os.getenv("LITE_MODE", "false").lower() == "true":
-        version = "1.0-lite"
+        version = "1.1-lite"
 
     checks: Dict[str, Dict[str, object]] = {}
 

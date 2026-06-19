@@ -153,7 +153,8 @@ function _getModal() {
       <input type="text" class="styled-prompt-input workspace-cur" id="workspace-cur-path"
              spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off"
              placeholder="Type or paste a folder path, then press Enter" />
-      <p class="muted workspace-note">File tools are <strong>confined</strong> to this folder. Shell commands start here but are <strong>not sandboxed</strong> and can reach outside it. A workspace scopes the tools; it is not a security boundary.</p>
+      <p class="muted workspace-note" id="workspace-note">File tools are <strong>confined</strong> to this folder. Shell commands start here but are <strong>not sandboxed</strong> and can reach outside it. A workspace scopes the tools; it is not a security boundary.</p>
+      <div class="workspace-row workspace-shortcut" id="workspace-host-shortcut" style="display:none">${_FOLDER_SVG}<span>Shared folder (/host)</span></div>
       <div class="modal-body workspace-body" id="workspace-body"></div>
       <div class="modal-footer workspace-footer">
         <button type="button" class="confirm-btn confirm-btn-secondary" id="workspace-cancel">Cancel</button>
@@ -176,15 +177,39 @@ function _getModal() {
     if (uiModule && uiModule.showToast) uiModule.showToast(`Workspace set: ${_basename(_curPath)}`);
     closeWorkspaceBrowser();
   });
+  // One-click jump to the opt-in host folder mounted at /host (if shared).
+  _modal.querySelector('#workspace-host-shortcut').addEventListener('click', () => _navigate('/host'));
   const content = _modal.querySelector('.modal-content');
   const header = _modal.querySelector('.modal-header');
   if (content && header) makeWindowDraggable(_modal, { content, header });
   return _modal;
 }
 
+// Probe whether an opt-in host folder is shared, and reflect it in the picker:
+// reveal the /host shortcut and make the confinement note mode-aware.
+async function _syncHostAccess() {
+  const shortcut = _modal && _modal.querySelector('#workspace-host-shortcut');
+  const note = _modal && _modal.querySelector('#workspace-note');
+  if (!shortcut) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/workspace/host-access`, { credentials: 'same-origin' });
+    if (!res.ok) throw new Error(String(res.status));
+    const d = await res.json();
+    shortcut.style.display = d.mounted ? '' : 'none';
+    if (note && d.mounted) {
+      note.innerHTML = (d.mode === 'read-write')
+        ? 'The shared folder <strong>/host</strong> is <strong>read-write</strong>: the agent can modify or delete real files in it. Sensitive files (.ssh, keys, shell rc) stay blocked.'
+        : 'The shared folder <strong>/host</strong> is <strong>read-only</strong>: the agent can read it but not change it. Sensitive files (.ssh, keys, shell rc) stay blocked.';
+    }
+  } catch (e) {
+    shortcut.style.display = 'none';
+  }
+}
+
 export async function openWorkspaceBrowser() {
   const modal = _getModal();
   modal.style.display = 'flex';
+  _syncHostAccess();
   try {
     _render(await _load(getWorkspace() || ''));
   } catch (e) {

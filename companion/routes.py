@@ -31,7 +31,7 @@ LITE_MODE = os.getenv("LITE_MODE", "false").lower() == "true"
 
 
 def _reported_version(app_version: str) -> str:
-    return "1.0-lite" if LITE_MODE else app_version
+    return "1.1-lite" if LITE_MODE else app_version
 
 
 def token_owner(request: Request) -> str | None:

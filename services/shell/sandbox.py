@@ -237,15 +237,33 @@ def reset_config_cache() -> None:
 # ---------------------------------------------------------------------------
 # Startup logging
 # ---------------------------------------------------------------------------
+def _host_mount_writable() -> bool:
+    """True when the opt-in /host folder is mounted writable. Lazy import keeps
+    sandbox.py free of a circular dependency (src.host_fs imports this module)."""
+    try:
+        from src.host_fs import is_host_writable
+        return is_host_writable()
+    except Exception:
+        return False
+
+
 def log_startup_mode() -> None:
     cfg = load_config(force=True)
     if cfg.effective_unrestricted:
+        host_line = ""
+        if _host_mount_writable():
+            host_line = (
+                "  A WRITABLE host folder is mounted at /host: the agent (and any\n"
+                "  prompt injection it hits) can MODIFY or DELETE your real files.\n"
+            )
         logger.warning(
             "============================================================\n"
             "  AGENT_SHELL_MODE=unrestricted (ACK'd) — the agent shell runs\n"
             "  with NO sandbox. A prompt injection can execute arbitrary code\n"
             "  as this user. Only use this on a trusted, isolated machine.\n"
-            "============================================================"
+            "%s"
+            "============================================================",
+            host_line,
         )
         return
     if cfg.mode == MODE_UNRESTRICTED and not cfg.ack_unsafe:

@@ -1,6 +1,6 @@
 # Odysseus Lite — Roadmap
 
-## Current Status: v1.0-lite
+## Current Status: v1.1-lite
 
 Odysseus Lite is a performance-focused fork of Odysseus for low-end PCs and laptops.
 

@@ -10,6 +10,11 @@ from src.tool_security import owner_is_admin_or_single_user
 # type/paste a path to jump straight in instead.
 _MAX_BROWSE_DIRS = 500
 
+# In-container mount point for the opt-in host folder (see docker-compose.lite.yml
+# and src.host_fs). The data dir comparison guards the "unset" no-op default, where
+# compose maps ./data here and no real host folder is shared.
+from src.host_fs import host_access_status  # noqa: E402
+
 
 def setup_workspace_routes():
     router = APIRouter(prefix="/api/workspace", tags=["workspace"])
@@ -81,5 +86,18 @@ def setup_workspace_routes():
         from src.tool_execution import vet_workspace
         resolved = vet_workspace(path)
         return {"ok": resolved is not None, "path": resolved}
+
+    @router.get("/host-access")
+    def host_access(request: Request):
+        """Report whether a host folder is shared with the agent and in which mode.
+
+        Drives the Settings → File Access panel and the workspace picker note.
+        Admin-gated like /browse and /vet: it reveals filesystem + shell-sandbox
+        state, which a non-admin (who can't use the file/shell tools) shouldn't see.
+        """
+        owner = get_current_user(request)
+        if not owner_is_admin_or_single_user(owner):
+            raise HTTPException(status_code=403, detail="File access status is admin-only")
+        return host_access_status()
 
     return router

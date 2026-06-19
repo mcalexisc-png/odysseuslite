@@ -32,7 +32,7 @@ function safeRasterDataUrl(raw) {
 }
 
 /* ── Tab switching ── */
-const ADMIN_TABS = new Set(['services', 'integrations', 'tools', 'users', 'system']);
+const ADMIN_TABS = new Set(['services', 'integrations', 'tools', 'users', 'system', 'file-access']);
 
 function initTabs() {
   modalEl.querySelectorAll('[data-settings-tab]').forEach(btn => {
@@ -451,6 +451,48 @@ function _bindFallbackWidget(opts) {
 }
 
 /* ── Default Chat Model ── */
+// Host file access status panel. Pure status display — the user opts in via
+// .env (HOST_FS_PATH / HOST_FS_MODE) and restart, never by escalating from here.
+async function initFileAccess() {
+  var badge = el('set-fileAccessBadge');
+  var detail = el('set-fileAccessDetail');
+  var warn = el('set-fileAccessWarn');
+  if (!badge) return;
+  try {
+    var res = await fetch('/api/workspace/host-access', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error('status ' + res.status);
+    var d = await res.json();
+    var labels = {
+      'none': 'Not shared',
+      'read-only': 'Read-only',
+      'read-write': 'Read-write',
+    };
+    var colors = {
+      'none': 'color-mix(in srgb, var(--fg) 55%, transparent)',
+      'read-only': '#3a9d5d',
+      'read-write': '#d9534f',
+    };
+    var mode = d.mode || 'none';
+    badge.textContent = labels[mode] || mode;
+    badge.style.color = colors[mode] || '';
+    if (mode === 'none') {
+      detail.textContent = 'No host folder is shared. The agent can only reach the app’s own data directory.';
+    } else if (mode === 'read-only') {
+      detail.textContent = 'A host folder is mounted at ' + (d.mount_path || '/host') +
+        ' and the agent can read, list, and search it once selected in the workspace picker. It cannot modify files (shell mode: ' + (d.shell_mode || 'sandboxed') + ').';
+    } else {
+      detail.textContent = 'A writable host folder is mounted at ' + (d.mount_path || '/host') +
+        ' and the shell sandbox is off (AGENT_SHELL_MODE=unrestricted). The agent can read, write, and run commands against it.';
+    }
+    if (warn) warn.style.display = (mode === 'read-write') ? '' : 'none';
+  } catch (e) {
+    badge.textContent = 'Unavailable';
+    badge.style.color = '';
+    if (detail) detail.textContent = 'Could not load file-access status.';
+    if (warn) warn.style.display = 'none';
+  }
+}
+
 async function initDefaultChat() {
   var epSel = el('set-defaultEpSelect');
   var modelSel = el('set-defaultModelSelect');
@@ -5645,6 +5687,7 @@ export function open(tab) {
   document.body.classList.toggle('settings-appearance-open', activeTab === 'appearance');
   syncAppearanceOpacity(activeTab === 'appearance');
   if (activeTab === 'ai') refreshAiModelEndpoints();
+  if (activeTab === 'file-access') initFileAccess();
   if (ADMIN_TABS.has(activeTab) && window.adminModule && !window.adminModule._initialized) {
     window.adminModule._initData();
   }

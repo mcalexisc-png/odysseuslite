@@ -363,6 +363,55 @@ Common internal-only ports:
 | `11434` | Ollama |
 | `8000-8020` | Common local model/provider APIs |
 
+## Giving the agent access to your files
+
+By default the agent **cannot reach files on your computer** — it only sees the
+app's own `data/` directory. You can opt in to sharing a single folder. This is
+off until you explicitly enable it, and read-only is the default.
+
+### Read-only (recommended)
+
+1. In `.env`, set the folder you want to share:
+   ```
+   HOST_FS_PATH=/home/youruser/Documents
+   ```
+   (Leave `HOST_FS_MODE` unset or `ro`.)
+2. Restart: `docker compose -f docker-compose.lite.yml up -d`. The folder now
+   appears inside the container at `/host`.
+3. In the chat UI, open the **workspace picker** (the folder icon in the input
+   bar's overflow menu) and click **Shared folder (/host)**, then **Use this
+   folder**.
+4. Ask the agent to read/list/search files. It can read but not modify them.
+
+Confirm the mode anytime in **Settings → File Access**.
+
+### Read-write (higher risk)
+
+This lets the agent **and any prompt injection it encounters** (in a document it
+reads or a web result) modify or delete real files in the shared folder. Only do
+this on a trusted machine. In `.env`:
+
+```
+HOST_FS_PATH=/home/youruser/Projects
+HOST_FS_MODE=rw
+AGENT_SHELL_MODE=unrestricted
+AGENT_SHELL_ACK_UNSAFE=true
+```
+
+Restart. A loud warning is logged at startup and **Settings → File Access** shows
+**Read-write** with a warning banner.
+
+### Safety model
+
+- **Default-off.** No host folder is mounted unless you set `HOST_FS_PATH`.
+- **Folder scope.** The agent's file tools are jailed to the folder you pick via
+  the workspace picker — not the whole disk.
+- **Sensitive-file denylist.** `.ssh`, `.gnupg`, key files (`id_rsa`, …), and
+  shell rc files are blocked **in every mode**, even inside a shared folder.
+- **Honest trade-off.** Read-only keeps the shell sandboxed and your files
+  unmodifiable. Read-write removes the shell sandbox; treat it like handing the
+  agent your own user account for that folder.
+
 ## Configuration
 Most setup is done inside the app with **Settings**. Use `.env`
 for deployment-level defaults and secrets you want present before first boot.
@@ -386,6 +435,8 @@ Key settings:
 | `RESEARCH_MAX_STEPS` | `5` | Max steps for Deep Research runs |
 | `RESEARCH_CONCURRENCY` | `1` | Max parallel fetches in Deep Research |
 | `ODYSSEUS_CHAT_UPLOAD_MAX_BYTES` | `5242880` | Chat/agent attachment cap in bytes (5 MB default for Lite) |
+| `HOST_FS_PATH` | -- | Opt-in: a host folder to share with the agent at `/host` (unset = no host access). See "Giving the agent access to your files" |
+| `HOST_FS_MODE` | `ro` | Mount mode for `HOST_FS_PATH`: `ro` (read-only) or `rw` (read-write; also needs `AGENT_SHELL_MODE=unrestricted`) |
 
 All upload-limit vars are validated (must be a positive integer) and optional; an invalid value fails fast at startup.
 
