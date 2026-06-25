@@ -8,8 +8,8 @@ uvicorn
 python-multipart
 python-dotenv
 httpx
-pydantic>=2.0
-pydantic-settings>=2.0
+pydantic>=2.13.4
+pydantic-settings>=2.14.2
 SQLAlchemy
 pypdf
 beautifulsoup4
@@ -32,7 +32,7 @@ pytest-asyncio
 # The codebase imports the maintained `ddgs` package (the renamed
 # duckduckgo-search); keep the old name pinned too for back-compat installs.
 ddgs
-duckduckgo-search==6.2.13
+duckduckgo-search==8.1.1
 
 # Phase 2 — cheap hybrid semantic memory (opt-in via MEMORY_BACKEND=hybrid).
 # sqlite-vec: single SQLite extension, no server (keeps the one-container rule).
